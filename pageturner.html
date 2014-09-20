@@ -1,0 +1,60 @@
+<html>
+
+<pre id="volume"></pre>
+
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+
+<script>
+window.AudioContext = window.AudioContext ||
+                      window.webkitAudioContext;
+
+var context = new AudioContext();
+
+navigator.getUserMedia = (navigator.getUserMedia ||
+                          navigator.webkitGetUserMedia ||
+                          navigator.mozGetUserMedia ||
+                          navigator.msGetUserMedia);
+
+analyser = context.createAnalyser();
+analyser.smoothingTimeConstant = 0.3;
+analyser.fftSize = 1024;
+var bufferLength = analyser.frequencyBinCount;
+var dataArray = new Uint8Array(bufferLength);
+
+navigator.getUserMedia({audio: true}, function(stream) {
+  window.microphone = context.createMediaStreamSource(stream);
+
+  microphone.connect(analyser);
+
+}, function() {
+  console.log('error'); 
+});
+
+var get_freq = function() {
+  analyser.getByteFrequencyData(dataArray);
+  return dataArray;
+}
+
+var get_volume = function() {
+  var sum = 0;
+
+  var freq = get_freq();
+  for (var i = 0; i < freq.length; i++) {
+    sum += freq[i];
+  }
+  return sum / freq.length;
+
+}
+
+setInterval(function() {
+  // $('#volume').empty().text(Array.join(get_freq(), ', '));
+
+  var volume = get_volume();
+  if (volume > 100) {
+    $('#volume').append($('<div>', {'text': volume}));   
+  }
+
+}, 10);
+
+</script>
+</html>
