@@ -1,45 +1,200 @@
+<meta charset="utf-8">
 <html>
-
-<pre id="volume"></pre>
-
-<canvas width=400 height=200 id="freq"></canvas>
 
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 
-<script>
-window.AudioContext = window.AudioContext ||
-                      window.webkitAudioContext;
+<canvas width=400 height=200 id="freq"></canvas>
+<canvas width=4000 height=100 id="volume"></canvas>
+<canvas width=4000 height=100 id="d_volume"></canvas>
+<canvas width=4000 height=50 id="beats"></canvas>
 
-var context = new AudioContext();
+<pre id="beat_count"></pre>
+
+<!--input type="file" onchange="handleFiles(this.files)" id="input"-->
+
+<script>
+
+// function handleFiles(files) {
+//   console.log(files[0].readAsBinaryString());
+// }
+
+var createRingBuffer = function(length){
+
+  var pointer = 0, buffer = [];
+
+  return {
+    get: function(key) {return buffer[key];},
+    get_most_recent: function() {
+      return buffer[(length + pointer - 1) % length] || 0;
+    },
+    push : function(item ){
+      buffer[pointer] = item;
+      pointer = (length + pointer +1) % length;
+    },
+    length: length,
+    avg: function(){
+      var sum = buffer.reduce(function(a, b){
+        return a + b;
+      }, 0);
+      return sum / length;
+    },
+  };
+};
+
+var createCheckStreak = function(length) {
+
+  var streak = 0;
+
+  return {
+    register: function(success) {
+      if (success) {
+        streak++;
+        if (streak == length) {
+          return true;
+        } else {
+          return false;
+        }
+      } else {
+        streak = 0;
+        return false;
+      }
+    }
+  }
+
+}
+
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+var audioContext = new AudioContext();
 
 navigator.getUserMedia = (navigator.getUserMedia ||
                           navigator.webkitGetUserMedia ||
                           navigator.mozGetUserMedia ||
                           navigator.msGetUserMedia);
 
-analyser = context.createAnalyser();
-analyser.smoothingTimeConstant = 0.3;
-analyser.fftSize = 1024;
+analyser = audioContext.createAnalyser();
+analyser.smoothingTimeConstant = 0.5;
+analyser.fftSize = 2048;
 var bufferLength = analyser.frequencyBinCount;
 var dataArray = new Uint8Array(bufferLength);
 
+//analyser.connect(context.destination);
+
 navigator.getUserMedia({audio: true}, function(stream) {
-  window.microphone = context.createMediaStreamSource(stream);
-
+  window.microphone = audioContext.createMediaStreamSource(stream);
   microphone.connect(analyser);
-
 }, function() {
   console.log('error');
 });
 
 WIDTH = 400;
 HEIGHT = 200;
-var canvasCtx = $('#freq')[0].getContext("2d");
-canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+var canvasCtx = $('#freq')[0].getContext('2d');
+var volumeCtx = $('#volume')[0].getContext('2d');
+var beatsCtx = $('#beats')[0].getContext('2d');
+var d_volumeCtx = $('#d_volume')[0].getContext('2d');
+
+
+function getEnergy() {
+
+  var sum = 0;
+  for (var i = 0; i < bufferLength; i++) {
+    sum += dataArray[i];
+  }
+  return sum / bufferLength;
+}
+
+function sum(array) {
+  var ret = 0;
+  for (var i=0; i<array.length; i++) {
+    ret += array[i];
+  }
+  return ret;
+}
+var time = 0;
+var volumes = createRingBuffer(15);
+var beat_times = createRingBuffer(100);
+var pending_deltas = [];
+var beat_count = 0;
+var time_between_beats = 20;
+var initalConsistencyStreak = createCheckStreak(8);
+
+var state = 'LOCKING'; // COUNTING, PLAYING
+var countdown = 8;
+
+function draw_beat() {
+  beatsCtx.fillStyle = 'rgb(0, 0, 0)';
+  beatsCtx.fillRect(time % 1200, 0, 1, 50);
+}
+
+function handle_beat(num_beats) {
+  beat_count += num_beats;
+  $('#beat_count').text(beat_count);
+  // console.log(num_beats, beat_count);
+}
+
+function registerTbbConsistency(time_between_beats, measured_tbb) {
+
+  var diff = Math.abs(time_between_beats - measured_tbb) / time_between_beats;
+  var success = initalConsistencyStreak.register(diff < 0.3);
+
+  if (success) {
+    console.log("locked on!");
+  }
+  return success;
+
+}
+
+function try_clear() {
+
+  var sum_deltas = sum(pending_deltas);
+
+  if (sum_deltas > 0.75 * time_between_beats) {
+
+    draw_beat();
+
+    var num_beats = Math.round(sum_deltas / time_between_beats);
+    handle_beat(num_beats);
+
+    var measured_tbb = sum_deltas / num_beats;
+
+    if (state === 'LOCKING') {
+      if (registerTbbConsistency(time_between_beats, measured_tbb)) {
+        state = 'COUNTING';
+      }
+    } else if (state === 'COUNTING') {
+      if (countdown === 0) {
+        state = 'PLAYING';
+      } else {
+        console.log(countdown);
+        countdown--;
+      }
+    } else if (state === 'PLAYING') {
+      console.log('chord here');
+    } else {
+      throw 'wtf?';
+    }
+
+
+    var ALPHA = 0.7;
+    time_between_beats = ALPHA * time_between_beats + (1 - ALPHA) * measured_tbb;
+
+    pending_deltas = [];
+  }
+}
+
+var increasing = false;
 
 function draw() {
-  requestAnimationFrame(draw);
+
   analyser.getByteFrequencyData(dataArray);
+
+  time++;
+  if (time % 1200 == 0) {
+    volumeCtx.clearRect(0, 0, 4000, HEIGHT);
+    d_volumeCtx.clearRect(0, 0, 4000, HEIGHT);
+    beatsCtx.clearRect(0, 0, 4000, HEIGHT);
+  }
+
   canvasCtx.fillStyle = 'rgb(0, 0, 0)';
   canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
@@ -47,12 +202,36 @@ function draw() {
   var barHeight;
   var x = 0;
 
+  var energy = getEnergy();
+
+  volumeCtx.fillRect(time % 1200, 100 - energy, 1, energy);
+
+  volumes.push(energy);
+
+  var d_volume = energy - volumes.avg() - 10;
+
+  if (d_volume > 0) {
+    if (!increasing) {
+      increasing = true;
+      var delta_time = time - beat_times.get_most_recent();
+      pending_deltas.push(delta_time);
+      try_clear();
+    }
+    beat_times.push(time);
+  } else {
+    increasing = false;
+  }
+
+  d_volumeCtx.fillRect(time % 1200, 100 - d_volume, 1, d_volume);
+
   for(var i = 0; i < bufferLength; i++) {
-    barHeight = (dataArray[i]) * HEIGHT / 255;
+    barHeight = (dataArray[i]) * 100 / 255;
     canvasCtx.fillStyle = 'rgb(' + Math.floor(barHeight+100) + ',50,50)';
-    canvasCtx.fillRect(x,HEIGHT-barHeight,barWidth,barHeight);
+    canvasCtx.fillRect(x, 100 - barHeight, barWidth, barHeight);
     x += barWidth + 1;
   }
+
+  requestAnimationFrame(draw);
 };
 
 draw();
