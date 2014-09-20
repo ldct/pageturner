@@ -3,7 +3,19 @@
 
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 
-<canvas width=400 height=200 id="freq"></canvas>
+<div style="display: flex">
+  <canvas width=400 height=200 id="freq" style="display: inline-block"></canvas>
+  <div style="height: 400; width: 200; border: 1px solid blue; display: inline-block; text-align: center">
+    <div id="status" style="margin-top: 50px">
+      Waiting for a consistent beat...
+    </div>
+
+    <div class="chord" style="font-size: 82px">
+      Yo
+    </div>
+
+  </div>
+</div>
 <canvas width=4000 height=100 id="volume"></canvas>
 <canvas width=4000 height=100 id="d_volume"></canvas>
 <canvas width=4000 height=50 id="beats"></canvas>
@@ -17,6 +29,48 @@
 // function handleFiles(files) {
 //   console.log(files[0].readAsBinaryString());
 // }
+
+var chords = [ '',
+'4', '3', '2', '1',
+'C', 'C', 'C', 'C',
+'G', 'G', 'G', 'G',
+'Am', 'Am', 'Am', 'Am',
+'F', 'F', 'F', 'F',
+'C', 'C', 'C', 'C',
+'G', 'G', 'G', 'G',
+'Am', 'Am', 'Am', 'Am',
+'F', 'F', 'F', 'F',
+
+'C', 'C', 'C', 'C',
+'G', 'G', 'G', 'G',
+'Am', 'Am', 'Am', 'Am',
+'F', 'F', 'G', 'G',
+
+'C', 'C', 'C', 'C',
+'G', 'G', 'G', 'G',
+'Am', 'Am', 'Am', 'Am',
+'F', 'F', 'F', 'F',
+
+'C', 'C', 'C', 'C',
+'G', 'G', 'G', 'G',
+'Am', 'Am', 'Am', 'Am',
+'F', 'F', 'G', 'G',
+
+'F', 'F', 'F', 'F',
+'G', 'G', 'C', 'G',
+'F', 'F', 'F', 'F',
+'G', 'G', 'C', 'G',
+
+'F', 'F', 'F', 'F',
+'G', 'G', 'C', 'G',
+'F', 'F', 'F', 'F',
+'G', '-', '-', '-',
+
+'C', 'C', 'C', 'C',
+'G', 'G', 'G', 'G',
+'Am', 'Am', 'Am', 'Am',
+'F', 'F', 'F', 'F',
+]
 
 var createRingBuffer = function(length){
 
@@ -126,7 +180,6 @@ var time_between_beats = 20;
 var initalConsistencyStreak = createCheckStreak(8);
 
 var state = 'LOCKING'; // COUNTING, PLAYING
-var countdown = 8;
 
 var invert = false;
 
@@ -142,7 +195,6 @@ function draw_beat() {
 function handle_beat(num_beats) {
   beat_count += num_beats;
   $('#beat_count').text(beat_count);
-  // console.log(num_beats, beat_count);
 }
 
 function registerTbbConsistency(time_between_beats, measured_tbb) {
@@ -172,17 +224,12 @@ function try_clear() {
 
     if (state === 'LOCKING') {
       if (registerTbbConsistency(time_between_beats, measured_tbb)) {
-        state = 'COUNTING';
-      }
-    } else if (state === 'COUNTING') {
-      if (countdown === 0) {
         state = 'PLAYING';
-      } else {
-        console.log(countdown);
-        countdown--;
+        beat_count = 0;
       }
     } else if (state === 'PLAYING') {
-      console.log('chord here');
+      $('#status').text(String(beat_count));
+      $('.chord').text(chords[beat_count]);
     } else {
       throw 'wtf?';
     }
