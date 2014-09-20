@@ -2,6 +2,8 @@
 
 <pre id="volume"></pre>
 
+<canvas width=400 height=200 id="freq"></canvas>
+
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 
 <script>
@@ -27,34 +29,33 @@ navigator.getUserMedia({audio: true}, function(stream) {
   microphone.connect(analyser);
 
 }, function() {
-  console.log('error'); 
+  console.log('error');
 });
 
-var get_freq = function() {
+WIDTH = 400;
+HEIGHT = 200;
+var canvasCtx = $('#freq')[0].getContext("2d");
+canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+
+function draw() {
+  requestAnimationFrame(draw);
   analyser.getByteFrequencyData(dataArray);
-  return dataArray;
-}
+  canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
-var get_volume = function() {
-  var sum = 0;
+  var barWidth = (WIDTH / bufferLength) * 2.5;
+  var barHeight;
+  var x = 0;
 
-  var freq = get_freq();
-  for (var i = 0; i < freq.length; i++) {
-    sum += freq[i];
+  for(var i = 0; i < bufferLength; i++) {
+    barHeight = (dataArray[i]) * HEIGHT / 255;
+    canvasCtx.fillStyle = 'rgb(' + Math.floor(barHeight+100) + ',50,50)';
+    canvasCtx.fillRect(x,HEIGHT-barHeight,barWidth,barHeight);
+    x += barWidth + 1;
   }
-  return sum / freq.length;
+};
 
-}
-
-setInterval(function() {
-  // $('#volume').empty().text(Array.join(get_freq(), ', '));
-
-  var volume = get_volume();
-  if (volume > 100) {
-    $('#volume').append($('<div>', {'text': volume}));   
-  }
-
-}, 10);
+draw();
 
 </script>
 </html>
