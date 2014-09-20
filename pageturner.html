@@ -82,13 +82,20 @@ var dataArray = new Uint8Array(bufferLength);
 navigator.getUserMedia({audio: true}, function(stream) {
   window.microphone = audioContext.createMediaStreamSource(stream);
   microphone.connect(analyser);
+
+  volumeCtx.clearRect(0, 0, 4000, HEIGHT);
+  d_volumeCtx.clearRect(0, 0, 4000, HEIGHT);
+  beatsCtx.clearRect(0, 0, 4000, HEIGHT);
+
+  time = 0;
+
 }, function() {
   console.log('error');
 });
 
 WIDTH = 400;
 HEIGHT = 200;
-var canvasCtx = $('#freq')[0].getContext('2d');
+var freqCtx = $('#freq')[0].getContext('2d');
 var volumeCtx = $('#volume')[0].getContext('2d');
 var beatsCtx = $('#beats')[0].getContext('2d');
 var d_volumeCtx = $('#d_volume')[0].getContext('2d');
@@ -121,8 +128,14 @@ var initalConsistencyStreak = createCheckStreak(8);
 var state = 'LOCKING'; // COUNTING, PLAYING
 var countdown = 8;
 
+var invert = false;
+
 function draw_beat() {
-  beatsCtx.fillStyle = 'rgb(0, 0, 0)';
+  if (invert) {
+    beatsCtx.fillStyle = 'rgb(255, 255, 255)';
+  } else {
+    beatsCtx.fillStyle = 'rgb(0, 0, 0)';
+  }
   beatsCtx.fillRect(time % 1200, 0, 1, 50);
 }
 
@@ -190,13 +203,11 @@ function draw() {
 
   time++;
   if (time % 1200 == 0) {
-    volumeCtx.clearRect(0, 0, 4000, HEIGHT);
-    d_volumeCtx.clearRect(0, 0, 4000, HEIGHT);
-    beatsCtx.clearRect(0, 0, 4000, HEIGHT);
+    invert = !invert;
   }
 
-  canvasCtx.fillStyle = 'rgb(0, 0, 0)';
-  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+  freqCtx.fillStyle = 'rgb(0, 0, 0)';
+  freqCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
   var barWidth = (WIDTH / bufferLength) * 2.5;
   var barHeight;
@@ -204,9 +215,26 @@ function draw() {
 
   var energy = getEnergy();
 
+  if (invert) {
+    volumeCtx.fillStyle = 'rgb(0, 0, 0)';
+    volumeCtx.fillRect(time % 1200, 0, 1, 100);
+    volumeCtx.fillStyle = 'rgb(255, 255, 255)';
+  } else {
+    volumeCtx.fillStyle = 'rgb(255, 255, 255)';
+    volumeCtx.fillRect(time % 1200, 0, 1, 100);
+    volumeCtx.fillStyle = 'rgb(0, 0, 0)';
+  }
   volumeCtx.fillRect(time % 1200, 100 - energy, 1, energy);
 
   volumes.push(energy);
+
+  if (invert) {
+    beatsCtx.fillStyle = 'rgb(0, 0, 0)';
+    beatsCtx.fillRect(time % 1200, 0, 1, 50);
+  } else {
+    beatsCtx.fillStyle = 'rgb(255, 255, 255)';
+    beatsCtx.fillRect(time % 1200, 0, 1, 50);
+  }
 
   var d_volume = energy - volumes.avg() - 10;
 
@@ -222,12 +250,22 @@ function draw() {
     increasing = false;
   }
 
+
+  if (invert) {
+    d_volumeCtx.fillStyle = 'rgb(0, 0, 0)';
+    d_volumeCtx.fillRect(time % 1200, 0, 1, 100);
+    d_volumeCtx.fillStyle = 'rgb(255, 255, 255)';
+  } else {
+    d_volumeCtx.fillStyle = 'rgb(255, 255, 255)';
+    d_volumeCtx.fillRect(time % 1200, 0, 1, 100);
+    d_volumeCtx.fillStyle = 'rgb(0, 0, 0)';
+  }
   d_volumeCtx.fillRect(time % 1200, 100 - d_volume, 1, d_volume);
 
   for(var i = 0; i < bufferLength; i++) {
     barHeight = (dataArray[i]) * 100 / 255;
-    canvasCtx.fillStyle = 'rgb(' + Math.floor(barHeight+100) + ',50,50)';
-    canvasCtx.fillRect(x, 100 - barHeight, barWidth, barHeight);
+    freqCtx.fillStyle = 'rgb(' + Math.floor(barHeight+100) + ',50,50)';
+    freqCtx.fillRect(x, 100 - barHeight, barWidth, barHeight);
     x += barWidth + 1;
   }
 
