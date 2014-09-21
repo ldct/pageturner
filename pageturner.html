@@ -14,6 +14,9 @@
       Yo
     </div>
 
+    <div class="next-chord" style="font-size: 32px">
+    </div>
+
   </div>
 </div>
 <canvas width=4000 height=100 id="volume"></canvas>
@@ -172,7 +175,7 @@ function sum(array) {
   return ret;
 }
 var time = 0;
-var volumes = createRingBuffer(15);
+var volumes = createRingBuffer(5);
 var beat_times = createRingBuffer(100);
 var pending_deltas = [];
 var beat_count = 0;
@@ -213,7 +216,7 @@ function try_clear() {
 
   var sum_deltas = sum(pending_deltas);
 
-  if (sum_deltas > 0.75 * time_between_beats) {
+  if (sum_deltas > (0.75 * time_between_beats)) {
 
     draw_beat();
 
@@ -230,15 +233,20 @@ function try_clear() {
     } else if (state === 'PLAYING') {
       $('#status').text(String(beat_count));
       $('.chord').text(chords[beat_count]);
+      $('.next-chord').text(chords[beat_count + 1]);
     } else {
       throw 'wtf?';
     }
 
 
     var ALPHA = 0.7;
-    time_between_beats = ALPHA * time_between_beats + (1 - ALPHA) * measured_tbb;
+    if (isFinite(measured_tbb)) {
+      time_between_beats = ALPHA * time_between_beats + (1 - ALPHA) * measured_tbb;
+    }
 
     pending_deltas = [];
+  } else {
+    console.log(sum_deltas);
   }
 }
 
@@ -283,12 +291,12 @@ function draw() {
     beatsCtx.fillRect(time % 1200, 0, 1, 50);
   }
 
-  var d_volume = energy - volumes.avg() - 10;
+  var d_volume = energy - volumes.avg();
 
   if (d_volume > 0) {
     if (!increasing) {
       increasing = true;
-      var delta_time = time - beat_times.get_most_recent();
+      var delta_time = time - beat_times.get_most_recent() - 5;
       pending_deltas.push(delta_time);
       try_clear();
     }
