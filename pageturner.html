@@ -291,12 +291,12 @@ function draw() {
     beatsCtx.fillRect(time % 1200, 0, 1, 50);
   }
 
-  var d_volume = energy - volumes.avg();
+  var d_volume = energy - volumes.avg() - 10;
 
   if (d_volume > 0) {
     if (!increasing) {
       increasing = true;
-      var delta_time = time - beat_times.get_most_recent() - 5;
+      var delta_time = time - beat_times.get_most_recent();
       pending_deltas.push(delta_time);
       try_clear();
     }
