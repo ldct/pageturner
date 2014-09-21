@@ -179,7 +179,7 @@ var volumes = createRingBuffer(5);
 var beat_times = createRingBuffer(100);
 var pending_deltas = [];
 var beat_count = 0;
-var time_between_beats = 20;
+var time_between_beats = 40;
 var initalConsistencyStreak = createCheckStreak(8);
 
 var state = 'LOCKING'; // COUNTING, PLAYING
@@ -229,6 +229,7 @@ function try_clear() {
       if (registerTbbConsistency(time_between_beats, measured_tbb)) {
         state = 'PLAYING';
         beat_count = 0;
+        ALPHA = 0.95;
       }
     } else if (state === 'PLAYING') {
       $('#status').text(String(beat_count));
